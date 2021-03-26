@@ -15,6 +15,7 @@ const inputElevation = document.querySelector('.form__input--elevation');
 class Workout {
     date = new Date();
     id = (Date.now() + '').slice(0, 10);
+    clicks = 0;
     constructor(coords, distance, duration) {
         this.coords = coords; //Array of [latitudes,longitudes]
         this.distance = distance;
@@ -24,6 +25,9 @@ class Workout {
         const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
         this.description = `${this.type[0].toUpperCase()}${this.type.slice(1)} on ${months[this.date.getMonth()]} ${this.date.getDate()}`;
+    }
+    click() {
+        this.clicks++;
     }
 
 }
@@ -61,13 +65,15 @@ class Cycling extends Workout {
 class App {
     //class Fields
     #map;
+    #mapZoomLevel = 13;
     #mapEvent;
     #workouts = [];
 
     constructor() {
         this._getPosition();
         form.addEventListener('submit', this._newWorkout.bind(this));
-        inputType.addEventListener('change', this._toggleElevationField)
+        inputType.addEventListener('change', this._toggleElevationField);
+        containerWorkouts.addEventListener('click', this._moveToPopUp.bind(this));
     }
 
     _getPosition() {
@@ -82,7 +88,7 @@ class App {
         const longitude = pos.coords.longitude;
         const coords = [latitude, longitude]
         console.log(`https://www.google.com/maps/@${latitude},${longitude}`)
-        this.#map = L.map('map').setView(coords, 13);  //the 'map' is the id of the div where we want the map 
+        this.#map = L.map('map').setView(coords, this.#mapZoomLevel);  //the 'map' is the id of the div where we want the map 
         //leaflet library displating map
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -241,6 +247,24 @@ class App {
         //insert html as a sibling to form, because form should always appear at the top
 
         form.insertAdjacentHTML('afterend', html);
+    }
+
+    _moveToPopUp(e) {
+        const workoutEl = e.target.closest('.workout');
+        console.log(workoutEl);
+
+        if (!workoutEl) return;
+
+        const workout = this.#workouts.find(work => work.id === workoutEl.dataset.id);
+        console.log(workout);
+
+        this.#map.setView(workout.coords, this.#mapZoomLevel, {   //this method is part of leaflet libary, please read documentation.
+            animate: true,
+            pan: {
+                duration: 1,
+            }
+        })
+        workout.click();
     }
 }
 const app = new App();
