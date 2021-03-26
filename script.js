@@ -69,11 +69,19 @@ class App {
     #mapEvent;
     #workouts = [];
 
+
     constructor() {
+        //get user position
         this._getPosition();
+
+        //get local storage
+        this._getLocalStorage();
+
+        //Add event handelers
         form.addEventListener('submit', this._newWorkout.bind(this));
         inputType.addEventListener('change', this._toggleElevationField);
         containerWorkouts.addEventListener('click', this._moveToPopUp.bind(this));
+
     }
 
     _getPosition() {
@@ -87,7 +95,7 @@ class App {
         const latitude = pos.coords.latitude;
         const longitude = pos.coords.longitude;
         const coords = [latitude, longitude]
-        console.log(`https://www.google.com/maps/@${latitude},${longitude}`)
+        // console.log(`https://www.google.com/maps/@${latitude},${longitude}`)
         this.#map = L.map('map').setView(coords, this.#mapZoomLevel);  //the 'map' is the id of the div where we want the map 
         //leaflet library displating map
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -95,6 +103,10 @@ class App {
         }).addTo(this.#map);
         //handling clicks on map
         this.#map.on('click', this._showForm.bind(this));
+
+        this.#workouts.forEach(work => {
+            this._renderWorkoutMarker(work);
+        })
     }
 
     //mapE is the event happened when we click on map
@@ -113,6 +125,8 @@ class App {
             form.style.display = 'grid';
         }, 500)
     }
+
+
 
     _toggleElevationField() {
         inputElevation.closest('.form__row').classList.toggle('form__row--hidden');  //closest parent having .form-row class is selected
@@ -172,11 +186,17 @@ class App {
         //Hide the form
         this._hideForm();
 
+
+
+
         //Clear inputs
         const inputs = [inputDistance, inputDuration, inputElevation, inputCadence];
         inputs.forEach(input => input.value = "")
 
         // console.log(mapEvent)
+
+        //set workout in Local Storage
+        this._setLocalStorage();
 
     }
 
@@ -251,12 +271,12 @@ class App {
 
     _moveToPopUp(e) {
         const workoutEl = e.target.closest('.workout');
-        console.log(workoutEl);
+        // console.log(workoutEl);
 
         if (!workoutEl) return;
 
         const workout = this.#workouts.find(work => work.id === workoutEl.dataset.id);
-        console.log(workout);
+        // console.log(workout);
 
         this.#map.setView(workout.coords, this.#mapZoomLevel, {   //this method is part of leaflet libary, please read documentation.
             animate: true,
@@ -264,7 +284,29 @@ class App {
                 duration: 1,
             }
         })
-        workout.click();
+        // workout.click();
+    }
+    _setLocalStorage() {
+        localStorage.setItem("workouts", JSON.stringify(this.#workouts))
+    }
+    _getLocalStorage() {
+        const data = JSON.parse(localStorage.getItem('workouts'));
+        console.log(data)
+        if (!data) return
+
+        // data.forEach(work)
+
+        this.#workouts = data;
+        this.#workouts.forEach(work => {
+            this._renderWorkoutList(work);
+
+
+        })
+
+    }
+    reset() {
+        localStorage.removeItem('workouts');
+        location.reload()
     }
 }
 const app = new App();
