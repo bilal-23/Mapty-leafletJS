@@ -10,11 +10,13 @@ const inputDistance = document.querySelector('.form__input--distance');
 const inputDuration = document.querySelector('.form__input--duration');
 const inputCadence = document.querySelector('.form__input--cadence');
 const inputElevation = document.querySelector('.form__input--elevation');
+const deleteAll = document.querySelector('.resetIcon');
+const sortBtn = document.querySelector('.btn--sort');
 
 
 class Workout {
     date = new Date();
-    id = (Date.now() + '').slice(0, 10);
+    id = (Date.now() + '').slice(0, 10) + Math.random()
     clicks = 0;
     constructor(coords, distance, duration) {
         this.coords = coords; //Array of [latitudes,longitudes]
@@ -68,6 +70,7 @@ class App {
     #mapZoomLevel = 13;
     #mapEvent;
     #workouts = [];
+    #sort = true;
 
 
     constructor() {
@@ -77,10 +80,16 @@ class App {
         //get local storage
         this._getLocalStorage();
 
+        //show Delete icon
+        this._showDeleteAllIcon();
+
         //Add event handelers
         form.addEventListener('submit', this._newWorkout.bind(this));
         inputType.addEventListener('change', this._toggleElevationField);
-        containerWorkouts.addEventListener('click', this._moveToPopUp.bind(this));
+        containerWorkouts.addEventListener('click', this._worokoutContainerTarget.bind(this));
+        deleteAll.addEventListener('click', this.reset.bind(this));
+        sortBtn.addEventListener('click', this._sortWorkout.bind(this));
+
 
     }
 
@@ -98,12 +107,13 @@ class App {
         // console.log(`https://www.google.com/maps/@${latitude},${longitude}`)
         this.#map = L.map('map').setView(coords, this.#mapZoomLevel);  //the 'map' is the id of the div where we want the map 
         //leaflet library displating map
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(this.#map);
         //handling clicks on map
         this.#map.on('click', this._showForm.bind(this));
-
+        // console.log(this.#workouts)
         this.#workouts.forEach(work => {
             this._renderWorkoutMarker(work);
         })
@@ -125,8 +135,6 @@ class App {
             form.style.display = 'grid';
         }, 500)
     }
-
-
 
     _toggleElevationField() {
         inputElevation.closest('.form__row').classList.toggle('form__row--hidden');  //closest parent having .form-row class is selected
@@ -220,6 +228,7 @@ class App {
         let html = `
         <li class="workout workout--${workout.type}" data-id=${workout.id}>
         <h2 class="workout__title">${workout.description}</h2>
+        <p class ="deleteImgIcon"> <img class="deleteWorkout" src="delete.png" alt=""> </p>
         <div class="workout__details">
           <span class="workout__icon">${workout.type === 'running' ? '🏃‍♂️' : '🚴‍♀️'}</span>
           <span class="workout__value">${workout.distance}</span>
@@ -267,6 +276,30 @@ class App {
         //insert html as a sibling to form, because form should always appear at the top
 
         form.insertAdjacentHTML('afterend', html);
+        this._showDeleteAllIcon()
+    }
+
+    // target finder 
+    _worokoutContainerTarget(e) {
+        if (e.target.classList.contains('deleteWorkout')) {
+            this._deleteWork(e);
+        } else {
+            this._moveToPopUp(e);
+        }
+    }
+
+    //deletw workout 
+    _deleteWork(e) {
+        const workoutEl = e.target.closest('.workout');
+        if (!workoutEl) return;
+
+
+        const workoutIndex = this.#workouts.findIndex(work => work.id === workoutEl.dataset.id);
+        this.#workouts.splice(workoutIndex, 1);
+        console.log(this.#workouts);
+        this._setLocalStorage();
+        location.reload()
+
     }
 
     _moveToPopUp(e) {
@@ -290,23 +323,56 @@ class App {
         localStorage.setItem("workouts", JSON.stringify(this.#workouts))
     }
     _getLocalStorage() {
+        let workout;
         const data = JSON.parse(localStorage.getItem('workouts'));
-        console.log(data)
         if (!data) return
 
         // data.forEach(work)
 
-        this.#workouts = data;
+
+        data.forEach(work => {
+            // console.log(work)
+            if (work.type === 'running') {
+                workout = new Running(work.coords, work.distance, work.duration, work.cadence);
+            } if (work.type === 'cycling') {
+                workout = new Cycling(work.coords, work.distance, work.duration, work.elevGain);
+            }
+            this.#workouts.push(workout);
+        })
         this.#workouts.forEach(work => {
             this._renderWorkoutList(work);
-
-
         })
+
 
     }
     reset() {
+        this.#sort = true;
         localStorage.removeItem('workouts');
-        location.reload()
+        location.reload();
+    }
+    _showDeleteAllIcon() {
+        // console.log(this.#workouts)
+        if (this.#workouts.length !== 0) {
+            // console.log(12)
+            deleteAll.parentElement.classList.remove('hiddenIcon')
+        }
+    }
+    _sortWorkout() {
+        //sort on the basis of workout distance;
+        // this.#workouts.forEach(x => console.log(x))
+
+        //sorting logic
+
+        const workout = this.#sort ? this.#workouts.slice().sort((a, b) => {
+            return a.distance - b.distance
+        }) : this.#workouts;
+        this.#sort = !this.#sort;
+
+        document.querySelectorAll('.workout').forEach(x => x.remove());
+
+        workout.forEach(work => {
+            this._renderWorkoutList(work);
+        })
     }
 }
 const app = new App();
